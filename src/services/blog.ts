@@ -1,6 +1,5 @@
 import { prismaClient } from "..";
 import { Request, Response } from "express";
-import { authenticate } from "../middleware/authenticate";
 import { Errors } from "../config/errors";
 
 // retrive all posts
@@ -77,7 +76,7 @@ export const deletePost = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const post = await prismaClient.post.delete({
+    await prismaClient.post.delete({
       where: {
         id: parseInt(id),
         autherId: req.userId,

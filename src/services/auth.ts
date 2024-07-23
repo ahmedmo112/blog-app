@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { prismaClient } from "..";
-import { hashSync, compareSync } from "bcrypt";
+import { compareSync, hashSync } from "bcrypt";
 import * as jwt from "jsonwebtoken";
 import { Errors } from "../config/errors";
 

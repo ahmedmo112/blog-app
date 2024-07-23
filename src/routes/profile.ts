@@ -6,8 +6,13 @@ import { authenticate } from "../middleware/authenticate";
 
 const profileRouter: Router = Router();
 
-profileRouter.get("/",authenticate, getProfile);
+profileRouter.get("/", authenticate, getProfile);
 
-profileRouter.put("/",authenticate, validateData(updateProfileSchema), updateProfile);
+profileRouter.put(
+  "/",
+  authenticate,
+  validateData(updateProfileSchema),
+  updateProfile,
+);
 
 export default profileRouter;

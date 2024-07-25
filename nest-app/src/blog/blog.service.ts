@@ -3,10 +3,19 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Errors } from 'src/Errors/error-messages';
+import { MailService } from 'src/mail/mail.service';
+import { User } from 'src/auth/entities/user.entity';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { UploaderService } from 'src/uploader/uploader.service';
 
 @Injectable()
 export class BlogService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+    @InjectQueue('blog-publish-mail') private publishMailQueue: Queue,
+  ) {}
 
   async getPosts() {
     const posts = await this.prisma.post.findMany({
@@ -37,8 +46,10 @@ export class BlogService {
         title: createPostDto.title,
         content: createPostDto.content,
         autherId: authorId,
+        image: createPostDto.image,
       },
     });
+
     return newPost;
   }
 
@@ -124,6 +135,17 @@ export class BlogService {
       data: {
         published: true,
       },
+      include: {
+        author: true,
+      },
+    });
+
+    muser: User;
+
+    const user: User = updatedPost.author;
+    await this.publishMailQueue.add('publish-mail', {
+      user,
+      postTitle: updatedPost.title,
     });
 
     return updatedPost;

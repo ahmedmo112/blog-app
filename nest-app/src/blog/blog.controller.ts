@@ -6,11 +6,14 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseFilePipeBuilder,
   ParseIntPipe,
   Post,
   Put,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { BlogService } from './blog.service';
@@ -19,10 +22,16 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { ZodValidationPipe } from 'src/pipes/zod-validation.pipe';
 import { createPostSchema, updatePostSchema } from './schema/blog.zod-schema';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import path from 'path';
+import { UploaderService } from 'src/uploader/uploader.service';
 
 @Controller('blog')
 export class BlogController {
-  constructor(private readonly blogService: BlogService) {}
+  constructor(
+    private readonly blogService: BlogService,
+    private uploaderService: UploaderService,
+  ) {}
 
   @HttpCode(HttpStatus.OK)
   @Get('posts')
@@ -37,8 +46,28 @@ export class BlogController {
 
   @UseGuards(AuthGuard)
   @Post('post')
-  @UsePipes(new ZodValidationPipe(createPostSchema))
-  async createPost(@Body() createPostDto: CreatePostDto, @Request() req) {
+  @UseInterceptors(FileInterceptor('image'))
+  async createPost(
+    @Body(new ZodValidationPipe(createPostSchema)) createPostDto: CreatePostDto,
+    @Request() req,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: 'image',
+        })
+        .addMaxSizeValidator({
+          maxSize: 1024 * 1024 * 2,
+        })
+        .build({
+          fileIsRequired: false,
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    if (file)
+      createPostDto.image = (await this.uploaderService.uploadFile(file)).url;
+
     return this.blogService.createPost(createPostDto, req.user.userId);
   }
 

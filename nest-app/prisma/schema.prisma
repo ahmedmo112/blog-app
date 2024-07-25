@@ -22,6 +22,7 @@ model Post {
   autherId  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+  image     String?  @db.VarChar(255)
 }
 
 model Profile {

@@ -10,4 +10,5 @@ export const Errors = {
   TokenRequired: 'Token is required',
   InvalidToken: 'Invalid token',
   NotAuther: 'You are not the author of this post',
+  NotHavePermission: 'You do not have permission to perform this action',
 };

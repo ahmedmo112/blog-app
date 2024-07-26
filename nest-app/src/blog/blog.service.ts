@@ -1,29 +1,58 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Errors } from 'src/Errors/error-messages';
-import { MailService } from 'src/mail/mail.service';
 import { User } from 'src/auth/entities/user.entity';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { UploaderService } from 'src/uploader/uploader.service';
+import {
+  PaginatedResult,
+  PaginateFunction,
+  paginator,
+} from 'src/pagination/paginator';
+import { Post } from './entities/blog.entity';
+import { WaitingPost } from './entities/waiting-post.entity';
+
+const paginate: PaginateFunction = paginator({ perPage: 3 });
 
 @Injectable()
 export class BlogService {
   constructor(
     private prisma: PrismaService,
-    private mailService: MailService,
     @InjectQueue('blog-publish-mail') private publishMailQueue: Queue,
   ) {}
 
-  async getPosts() {
-    const posts = await this.prisma.post.findMany({
-      where: {
-        published: true,
+  async getPublishedPosts(
+    page: number,
+    perPage: number,
+  ): Promise<PaginatedResult<Post>> {
+    return paginate(
+      this.prisma.post,
+      {
+        where: {
+          published: true,
+        },
       },
-    });
-    return posts;
+      {
+        page,
+        perPage,
+      },
+    );
+  }
+
+  async getAllPosts(
+    page: number,
+    perPage: number,
+  ): Promise<PaginatedResult<Post>> {
+    return await paginate(
+      this.prisma.post,
+      {},
+      {
+        page,
+        perPage,
+      },
+    );
   }
 
   async getPostById(id: number) {
@@ -128,6 +157,64 @@ export class BlogService {
       throw new NotFoundException(Errors.NotAuther);
     }
 
+    const waitingPost = await this.prisma.waitingPostToPublish.findFirst({
+      where: {
+        postId,
+      },
+    });
+
+    if (waitingPost) {
+      throw new HttpException('Post is already waiting for admin approve', 400);
+    }
+
+    await this.prisma.waitingPostToPublish.create({
+      data: {
+        postId,
+      },
+    });
+
+    const message = {
+      message: 'Post is waiting for admin approve',
+    };
+
+    return message;
+  }
+
+  async getWaitingPosts(
+    page: number,
+    perPage: number,
+  ): Promise<PaginatedResult<WaitingPost>> {
+    return await paginate(
+      this.prisma.waitingPostToPublish,
+      {
+        include: {
+          post: true,
+        },
+      },
+      {
+        page,
+        perPage,
+      },
+    );
+  }
+
+  async approvePost(postId: number) {
+    const waitingPost = await this.prisma.waitingPostToPublish.findFirst({
+      where: {
+        postId,
+      },
+    });
+
+    if (!waitingPost) {
+      throw new HttpException('Post is not waiting for admin approve', 400);
+    }
+
+    await this.prisma.waitingPostToPublish.delete({
+      where: {
+        id: waitingPost.id,
+      },
+    });
+
     const updatedPost = await this.prisma.post.update({
       where: {
         id: postId,
@@ -148,16 +235,27 @@ export class BlogService {
       postTitle: updatedPost.title,
     });
 
-    return updatedPost;
+    return {
+      message: 'Post approved successfully',
+    };
   }
 
-  async getUserPosts(userId: number) {
-    const posts = await this.prisma.post.findMany({
-      where: {
-        autherId: userId,
+  async getUserPosts(
+    page: number,
+    perPage: number,
+    userId: number,
+  ): Promise<PaginatedResult<Post>> {
+    return await paginate(
+      this.prisma.post,
+      {
+        where: {
+          autherId: userId,
+        },
       },
-    });
-
-    return posts;
+      {
+        page,
+        perPage,
+      },
+    );
   }
 }

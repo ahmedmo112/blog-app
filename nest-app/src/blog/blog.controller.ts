@@ -10,11 +10,11 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   Request,
   UploadedFile,
   UseGuards,
   UseInterceptors,
-  UsePipes,
 } from '@nestjs/common';
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -23,8 +23,10 @@ import { ZodValidationPipe } from 'src/pipes/zod-validation.pipe';
 import { createPostSchema, updatePostSchema } from './schema/blog.zod-schema';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import path from 'path';
 import { UploaderService } from 'src/uploader/uploader.service';
+import { RolesGuard } from 'src/guards/role.guard';
+import { Roles } from 'src/decorators/role.decorator';
+import { Role } from 'src/enums/role.enum';
 
 @Controller('blog')
 export class BlogController {
@@ -35,8 +37,21 @@ export class BlogController {
 
   @HttpCode(HttpStatus.OK)
   @Get('posts')
-  async getPosts() {
-    return this.blogService.getPosts();
+  async getPosts(
+    @Query('page') page: number = 1,
+    @Query('perPage') perPage: number = 3,
+  ) {
+    return this.blogService.getPublishedPosts(page, perPage);
+  }
+
+  @Get('posts/all')
+  @Roles(Role.Admin)
+  @UseGuards(AuthGuard, RolesGuard)
+  async getAllPosts(
+    @Query('page') page: number = 1,
+    @Query('perPage') perPage: number = 3,
+  ) {
+    return this.blogService.getAllPosts(page, perPage);
   }
 
   @Get('post/:id')
@@ -87,15 +102,38 @@ export class BlogController {
     return this.blogService.deletePost(id, req.user.userId);
   }
 
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
-  @Put('post/publish/:id')
+  @Post('post/publish/:id')
   async publishPost(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.blogService.publishPost(id, req.user.userId);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @Get('posts/waitlist')
+  async getWaitList(
+    @Query('page') page: number = 1,
+    @Query('perPage') perPage: number = 3,
+  ) {
+    return this.blogService.getWaitingPosts(page, perPage);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @Post('post/approve/:id')
+  async approvePost(@Param('id', ParseIntPipe) id: number) {
+    return this.blogService.approvePost(id);
+  }
+
   @UseGuards(AuthGuard)
   @Get('myposts')
-  async getMyPosts(@Request() req) {
-    return this.blogService.getUserPosts(req.user.userId);
+  async getMyPosts(
+    @Request() req,
+    @Query('page') page: number = 1,
+    @Query('perPage') perPage: number = 3,
+  ) {
+    return this.blogService.getUserPosts(page, perPage, req.user.userId);
   }
 }

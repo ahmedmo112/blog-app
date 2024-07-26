@@ -23,6 +23,7 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
   image     String?  @db.VarChar(255)
+  waitingPost WaitingPostToPublish[]
 }
 
 model Profile {
@@ -37,6 +38,14 @@ model User {
   email    String   @unique
   name     String?
   password String   @db.VarChar(255)
+  role     String   @default("user")
   posts    Post[]
   profile  Profile?
+}
+
+model WaitingPostToPublish {
+  id        Int      @id @default(autoincrement())
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    Int
+  requestedAt DateTime @default(now())
 }

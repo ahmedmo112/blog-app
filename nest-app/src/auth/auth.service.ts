@@ -11,6 +11,14 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { hashSync, compareSync } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Errors } from 'src/Errors/error-messages';
+import {
+  PaginatedResult,
+  PaginateFunction,
+  paginator,
+} from 'src/pagination/paginator';
+import { User } from './entities/user.entity';
+
+const paginate: PaginateFunction = paginator({ perPage: 3 });
 
 @Injectable()
 export class AuthService {
@@ -61,8 +69,15 @@ export class AuthService {
       throw new UnauthorizedException(Errors.PasswordNotMatch);
     }
 
-    const token = this.jwtService.sign({ userId: user.id });
+    const token = this.jwtService.sign({ userId: user.id, role: user.role });
 
     return { user, token };
+  }
+
+  async getAllUsers(
+    page: number,
+    perPage: number,
+  ): Promise<PaginatedResult<User>> {
+    return await paginate(this.prisma.user, {}, { page, perPage });
   }
 }

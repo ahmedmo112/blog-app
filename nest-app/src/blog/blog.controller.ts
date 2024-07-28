@@ -19,8 +19,6 @@ import {
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
-import { ZodValidationPipe } from 'src/pipes/zod-validation.pipe';
-import { createPostSchema, updatePostSchema } from './schema/blog.zod-schema';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploaderService } from 'src/uploader/uploader.service';
@@ -63,7 +61,7 @@ export class BlogController {
   @Post('post')
   @UseInterceptors(FileInterceptor('image'))
   async createPost(
-    @Body(new ZodValidationPipe(createPostSchema)) createPostDto: CreatePostDto,
+    @Body() createPostDto: CreatePostDto,
     @Request() req,
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -90,7 +88,7 @@ export class BlogController {
   @Put('post/:id')
   async updatePost(
     @Param('id', ParseIntPipe) id: number,
-    @Body(new ZodValidationPipe(updatePostSchema)) updatePostDto: UpdatePostDto,
+    @Body() updatePostDto: UpdatePostDto,
     @Request() req,
   ) {
     return this.blogService.updatePost(id, req.user.userId, updatePostDto);

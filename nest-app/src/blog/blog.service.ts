@@ -12,7 +12,7 @@ import {
   paginator,
 } from 'src/pagination/paginator';
 import { Post } from './entities/blog.entity';
-import { WaitingPost } from './entities/waiting-post.entity';
+import { PostStatus } from '@prisma/client';
 
 const paginate: PaginateFunction = paginator({ perPage: 3 });
 
@@ -157,19 +157,23 @@ export class BlogService {
       throw new NotFoundException(Errors.NotAuther);
     }
 
-    const waitingPost = await this.prisma.waitingPostToPublish.findFirst({
+    const waitingPost = await this.prisma.post.findFirst({
       where: {
-        postId,
+        id: postId,
       },
     });
 
-    if (waitingPost) {
+    if (waitingPost.status === PostStatus.WAITING) {
       throw new HttpException('Post is already waiting for admin approve', 400);
     }
 
-    await this.prisma.waitingPostToPublish.create({
+    await this.prisma.post.update({
+      where: {
+        id: postId,
+      },
       data: {
-        postId,
+        status: PostStatus.WAITING,
+        requestedAt: new Date(),
       },
     });
 
@@ -183,12 +187,15 @@ export class BlogService {
   async getWaitingPosts(
     page: number,
     perPage: number,
-  ): Promise<PaginatedResult<WaitingPost>> {
-    return await paginate(
-      this.prisma.waitingPostToPublish,
+  ): Promise<PaginatedResult<Post>> {
+    const posts: PaginatedResult<Post> = await paginate(
+      this.prisma.post,
       {
-        include: {
-          post: true,
+        where: {
+          status: PostStatus.WAITING,
+        },
+        orderBy: {
+          requestedAt: 'asc',
         },
       },
       {
@@ -196,24 +203,19 @@ export class BlogService {
         perPage,
       },
     );
+    return posts;
   }
 
   async approvePost(postId: number) {
-    const waitingPost = await this.prisma.waitingPostToPublish.findFirst({
+    const waitingPost = await this.prisma.post.findFirst({
       where: {
-        postId,
+        id: postId,
       },
     });
 
-    if (!waitingPost) {
+    if (!waitingPost || waitingPost.status !== PostStatus.WAITING) {
       throw new HttpException('Post is not waiting for admin approve', 400);
     }
-
-    await this.prisma.waitingPostToPublish.delete({
-      where: {
-        id: waitingPost.id,
-      },
-    });
 
     const updatedPost = await this.prisma.post.update({
       where: {
@@ -221,6 +223,7 @@ export class BlogService {
       },
       data: {
         published: true,
+        status: PostStatus.PUBLISHED,
       },
       include: {
         author: true,

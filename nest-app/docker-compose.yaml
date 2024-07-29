@@ -1,0 +1,45 @@
+version: "3.5"
+
+services:
+  db:
+    image: mysql:latest
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=blog
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./db-data:/var/lib/mysql
+    container_name: mysql-nest-app
+
+
+  nest-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    container_name: nest-app-container
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./src:/app/src
+
+
+
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    container_name: redis-nest-app
+
+
+
+networks:
+  defualt:
+    driver: bridge

@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 
 services:
   db:
@@ -8,37 +8,38 @@ services:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=blog
     ports:
-      - "3307:3306"
+      - '3307:3306'
     volumes:
       - ./db-data:/var/lib/mysql
     container_name: mysql-nest-app
 
-
   nest-app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "3000:3000"
+      - '3000:3000'
     container_name: nest-app-container
+    env_file: .env
     depends_on:
       - db
       - redis
+    command:
+      - /bin/sh
+      - -c
+      - |
+        npx prisma db push
+        npm run start:prod
     volumes:
       - ./src:/app/src
-
-
-
 
   redis:
     image: redis:latest
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
     container_name: redis-nest-app
-
-
 
 networks:
   defualt:

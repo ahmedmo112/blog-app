@@ -17,6 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: ahmedmo112/blog-nest-app:latest
     restart: always
     ports:
       - '3000:3000'
